@@ -7,7 +7,7 @@ ADDR=(host_server, host_port)
 server=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.bind(ADDR)
 
-HEADER=64
+HEADER=100
 FORMAT = 'utf-8'
 DISCONNECT_MESSAGE='!DISCONNECT'
 
@@ -31,11 +31,17 @@ def handle_client(conn, addr):
             line=conn.recv(line_length).decode(FORMAT)
             if (line_no not in lines):
                 lines[line_no]=line
+                print(line)
             if (len(lines)==1000):
-                data="\n".join(lines)
+                line="\n".join(lines)
+                feed_length=str(DISCONNECT_MESSAGE.encode(FORMAT))
+                feed_length +=b' '*(HEADER-len(feed_length))
+                conn.send(feed_length)
                 conn.send(DISCONNECT_MESSAGE.encode(FORMAT))
-                conn.send(str(len(lines)).encode(FORMAT))
-                conn.send(data.encode(FORMAT))
+                line_length=str(len(line).encode(FORMAT))
+                line_length +=b' '*(HEADER-len(line_length))
+                conn.send(line_length.encode(FORMAT))
+                conn.send(line.encode(FORMAT))
                 connected=False
             else:
                 conn.send("more".encode(FORMAT))
@@ -47,12 +53,15 @@ def start():
     print(f"[LISTENING] Server is listening on {host_server}") 
     while True:
         conn, addr= server.accept()
-        thread=threading.Thread(target=handle_client, args=(list,conn, addr))
+        thread=threading.Thread(target=handle_client, args=(conn, addr))
         thread.start()
         print(f"[ACTIVE CONNECTIONS] {threading.activeCount()-1}")
 
-
+thread=threading.Thread(target=(start))
+thread.start()
+print("Hello")
 while len(lines) != 1000:
+    print(len(lines))
     request = "SENDLINE\n"
     client_socket.send(request.encode())
     response = client_socket.recv(1024)
