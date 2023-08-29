@@ -8,9 +8,9 @@ host_ip="192.168.64.1"
 feed=""
 data=""
 DISCONNECT_MESSAGE="!DISCONNECT"
-
+HEADER=100
 def message(msg, data, Port, IP):
-    HEADER=64
+
     PORT=Port
     FORMAT='utf-8'
     SERVER=IP
@@ -34,6 +34,7 @@ def message(msg, data, Port, IP):
         if (feed==DISCONNECT_MESSAGE):
             data_length=int(client.recv(1000).decode(FORMAT))
             data=client.recv(data_length).decide(FORMAT)
+            print("MIlgaya", data)
     send(msg, data)
 sent=set()
 while feed==DISCONNECT_MESSAGE:
@@ -52,6 +53,7 @@ while feed==DISCONNECT_MESSAGE:
                     break
         continue
     line=line_data[1]
+    print(line)
     if (len(line_data)==3):
         message((line_no,line), data, host_port, host_ip)
         continue
