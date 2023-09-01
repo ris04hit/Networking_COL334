@@ -3,6 +3,7 @@ import threading
 #Host server binding
 host_port=5050
 host_server=socket.gethostbyname(socket.gethostname())
+
 ADDR=(host_server, host_port)
 server=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.bind(ADDR)
@@ -10,9 +11,10 @@ server.bind(ADDR)
 HEADER=100
 FORMAT = 'utf-8'
 DISCONNECT_MESSAGE='!DISCONNECT'
-
+#10.237.26.109
 #Vayu server connecting
 website_ip = socket.gethostbyname("vayu.iitd.ac.in")
+print(website_ip)
 port = 9801
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client_socket.connect((website_ip, port))
@@ -44,6 +46,9 @@ def handle_client(conn, addr):
                 conn.send(line.encode(FORMAT))
                 connected=False
             else:
+                feed_length=str("4".encode(FORMAT))
+                feed_length +=b' '*(HEADER-len(feed_length))
+                conn.send(feed_length)
                 conn.send("more".encode(FORMAT))
     conn.close()
 
@@ -61,37 +66,37 @@ thread=threading.Thread(target=(start))
 thread.start()
 print("Hello")
 while len(lines) != 1000:
-    print(len(lines))
     request = "SENDLINE\n"
     client_socket.send(request.encode())
     response = client_socket.recv(1024)
-    line_data = response.decode().split("\n")
-    line_no = int(line_data[0])
-    if line_no==-1:
-        continue
-    if line_no in lines:
-        if len(line_data) != 3:
-            while True:
-                response = client_socket.recv(4096).decode().split('\n')
-                if len(response) == 2:
-                    break
-        continue
-    line=line_data[1]
-    if (len(line_data)==3):
-        lines[line_no]=line
-        continue
-    while True:
-        response = client_socket.recv(500000)
-        if response==b'':
-            break
+    if (response):
         line_data = response.decode().split("\n")
+        line_no = int(line_data[0])
         if line_no==-1:
             continue
-        if len(line_data) == 1:
-            line += line_data[0]
-        else:
-            line += line_data[0]
-            break
-    lines[line_no]=line
+        if line_no in lines:
+            if len(line_data) != 3:
+                while True:
+                    response = client_socket.recv(4096).decode().split('\n')
+                    if len(response) == 2:
+                        break
+            continue
+        line=line_data[1]
+        if (len(line_data)==3):
+            lines[line_no]=line
+            continue
+        while True:
+            response = client_socket.recv(500000)
+            if response==b'':
+                break
+            line_data = response.decode().split("\n")
+            if line_no==-1:
+                continue
+            if len(line_data) == 1:
+                line += line_data[0]
+            else:
+                line += line_data[0]
+                break
+        lines[line_no]=line
 client_socket.close() 
 print(lines)
