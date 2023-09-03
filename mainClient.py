@@ -52,6 +52,20 @@ def receive_line(sock):
                     line_ct += 1
                     print(line_ct)
 
+def get_default_gateway():
+    # Get the default route using socket
+    with socket(AF_INET, SOCK_DGRAM) as s:
+        s.connect(("8.8.8.8", 80))
+        default_gateway = s.getsockname()[0]
+
+    return default_gateway
+
+def close_socket():
+    clientsocket.close()
+    for i in range(num_dc):
+        dummyclientsocket[i].close()
+    serversocket.close()
+
 
 # For web server
 web_ip = '10.17.51.115'
@@ -71,28 +85,35 @@ host = '2021CS10547@team\n'
 serversocket.listen(num_dc)     # Setting the server to listen to other clients
 
 # Getting our IP
-command = ["ip route |grep default | awk '{print $3}'"]
-result = subprocess.run(command[0], shell = True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
-host_ip = result.stdout.strip()
+host_ip = get_default_gateway()
 print(host_ip)
 
 # Receiving IP from dummyclients
 connectionsocket = []           # list of connection sockets for acting as server
 for i in range(num_dc):
-    consocket, addr = serversocket.accept()                 # Accepting connection
-    connectionsocket.append(consocket)
-    msg = connectionsocket[i].recv(1024).decode().split()
-    if msg[0] == '0':
-        dc_ip.append(msg[1])
+    try:
+        consocket, addr = serversocket.accept()                 # Accepting connection
+        connectionsocket.append(consocket)
+        msg = connectionsocket[i].recv(1024).decode().split()
+        if msg[0] == '0':
+            dc_ip.append(msg[1])
+        print(msg)
+    except Exception as e:
+        close_socket()
+        print(e)
 
 # Connecting with dummy clients
 dummyclientsocket = []       # list of sockets of dummy clients
 for i in range(num_dc):
-    dummyclientsocket.append(socket(AF_INET, SOCK_STREAM))
-    dummyclientsocket[i].connect((dc_ip[i], dc_port))        # Connection established to each dummy client
+    try:
+        dummyclientsocket.append(socket(AF_INET, SOCK_STREAM))
+        dummyclientsocket[i].connect((dc_ip[i], dc_port))        # Connection established to each dummy client
+    except Exception as e:
+        close_socket()
+        print(e)
 
 for i in range(num_dc):
-    dummyclientsocket[i].send(('1 '+dc_ip.join(' ')).encrypt())                 # Message for dummy client to connect to other clients
+    dummyclientsocket[i].send(('1 ' + ' '.join(dc_ip)).encrypt())                 # Message for dummy client to connect to other clients
     response = dummyclientsocket[i].recv(1024).decode()      # Confirmation message that dummyclient connected to other clients
     
 for i in range(num_dc):
@@ -138,7 +159,4 @@ response = receive_msg(clientsocket)
 print(response)
 
 # Closing sockets
-clientsocket.close()
-for i in range(num_dc):
-    dummyclientsocket[i].close()
-serversocket.close()
+close_socket()

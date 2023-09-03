@@ -31,6 +31,14 @@ def webserver(clientsocket):
                     line_ct += 1
                     print(line_ct)
 
+def get_default_gateway():
+    # Get the default route using socket
+    with socket(AF_INET, SOCK_DGRAM) as s:
+        s.connect(("8.8.8.8", 80))
+        default_gateway = s.getsockname()[0]
+
+    return default_gateway
+
 def receive_line(sock):
     # Processing lines from dummyclients
     global line_ct
@@ -64,9 +72,7 @@ host = '2021CS10121@team\n'
 serversocket.listen(num_dc)     # Setting the server to listen to other clients
 
 # Getting our IP
-command = ["ip route |grep default | awk '{print $3}'"]
-result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
-host_ip = result.stdout.strip()
+host_ip = get_default_gateway()
 print(host_ip)
 
 # Sending IP to main client
