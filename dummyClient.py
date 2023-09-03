@@ -52,6 +52,13 @@ def receive_line(sock):
                     line_ct += 1
                     print(line_ct)
 
+def close_socket():
+    clientsocket.close()
+    for i in range(num_dc):
+        dummyclientsocket[i].close()
+    serversocket.close()
+
+
 # For web server
 web_ip = '10.17.51.115'
 web_port = 9801
@@ -77,8 +84,13 @@ print(host_ip)
 
 # Sending IP to main client
 dummyclientsocket = [socket(AF_INET, SOCK_STREAM)]       # list of sockets of dummy clients (main client is also considered as dummy)
-dummyclientsocket[0].connect((mainclient_ip, dc_port))
-dummyclientsocket[0].send(('0 '+host_ip).encode())
+try:
+    dummyclientsocket[0].connect((mainclient_ip, dc_port))
+    dummyclientsocket[0].send(('0 '+host_ip).encode())
+except Exception as e:
+    close_socket()
+    print(e)
+    sys.exit(0)
 
 # Recieving message from mainClient
 mainsocket, address = serversocket.accept()
@@ -139,7 +151,4 @@ response = receive_msg(clientsocket)
 print(response)
 
 # Closing sockets
-clientsocket.close()
-for i in range(num_dc):
-    dummyclientsocket[i].close()
-serversocket.close()
+close_socket()

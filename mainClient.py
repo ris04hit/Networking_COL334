@@ -101,6 +101,7 @@ for i in range(num_dc):
     except Exception as e:
         close_socket()
         print(e)
+        sys.exit(0)
 
 # Connecting with dummy clients
 dummyclientsocket = []       # list of sockets of dummy clients
@@ -111,13 +112,14 @@ for i in range(num_dc):
     except Exception as e:
         close_socket()
         print(e)
+        sys.exit(0)
 
 for i in range(num_dc):
     dummyclientsocket[i].send(('1 ' + ' '.join(dc_ip)).encrypt())                 # Message for dummy client to connect to other clients
     response = dummyclientsocket[i].recv(1024).decode()      # Confirmation message that dummyclient connected to other clients
     
 for i in range(num_dc):
-    dummyclientsocket[i].send('3'.encrypt())                # Message for dummy client to connect to web server
+    dummyclientsocket[i].send('3'.encode())                # Message for dummy client to connect to web server
 clientsocket.connect((web_ip, web_port))                      # Connecting to web server
 
 # Asking for max length from server
