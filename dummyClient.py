@@ -44,7 +44,7 @@ def get_default_gateway():
 def receive_line(sock):
     # Processing lines from dummyclients
     global line_ct
-    while True:
+    while line_ct != max_length:
         line_num = int(receive_msg(sock))                    # Storing dummyclient response
         line_content = receive_msg(sock)
         with line_lock[line_num]:
