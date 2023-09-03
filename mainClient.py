@@ -42,11 +42,11 @@ def receive_line(sock):
     # Processing lines from dummyclients
     global line_ct
     while True:
-        response = receive_msg(sock).split('\n')
-        line_num = int(response[0])
+        line_num = int(receive_msg(sock))                    # Storing webserver response
+        line_content = receive_msg(sock)
         with line_lock[line_num]:
             if not line[line_num]:
-                line[line_num] = response[1]
+                line[line_num] = line_content
                 with line_ct_lock:
                     line_ct += 1
                     print(line_ct)
