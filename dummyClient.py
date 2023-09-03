@@ -45,7 +45,7 @@ def receive_line(sock):
     # Processing lines from dummyclients
     global line_ct
     while True:
-        line_num = int(receive_msg(sock))                    # Storing webserver response
+        line_num = int(receive_msg(sock))                    # Storing dummyclient response
         line_content = receive_msg(sock)
         with line_lock[line_num]:
             if not line[line_num]:
@@ -145,7 +145,7 @@ try:
     for i in range (max_length):
         if line[i]:
             msg.append(str(i)+'\n')
-            msg.append(line[i]+'\n')
+            msg.append(line[i])
     send_msg(clientsocket, msg)
 
     # Getting submit response from server

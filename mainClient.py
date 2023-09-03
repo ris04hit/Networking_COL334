@@ -35,14 +35,14 @@ def webserver(clientsocket):
         # creating threads for line transfer to dummyclients 
         dummy_thread = []
         for i in range(num_dc):
-            dummy_thread.append(threading.Thread(target = send_msg, args=(dummyclientsocket[i], [str(line_num), '\n', line_content, '\n'])))
+            dummy_thread.append(threading.Thread(target = send_msg, args=(dummyclientsocket[i], [str(line_num), '\n', line_content])))
             dummy_thread[i].start()
             
 def receive_line(sock):
     # Processing lines from dummyclients
     global line_ct
     while True:
-        line_num = int(receive_msg(sock))                    # Storing webserver response
+        line_num = int(receive_msg(sock))                    # Storing dummyclient response
         line_content = receive_msg(sock)
         with line_lock[line_num]:
             if not line[line_num]:
@@ -144,7 +144,7 @@ try:
     for i in range (max_length):
         if line[i]:
             msg.append(str(i)+'\n')
-            msg.append(line[i]+'\n')
+            msg.append(line[i])
     send_msg(clientsocket, msg)
 
     # Getting submit response from server
