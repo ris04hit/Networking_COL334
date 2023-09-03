@@ -1,6 +1,5 @@
 from socket import *
-import threading
-import sys
+import threading, sys, subprocess
 
 def send_msg(sock, msg):
     # function to send message
@@ -68,9 +67,13 @@ num_dc = int(sys.argv[1])                  # Number of dummy clients to be conne
 dc_ip = []
 dc_port = 12000
 host = '2021CS10547@team\n'
-host_ip = gethostbyname(gethostname())
-print(host_ip)
 serversocket.listen(num_dc)     # Setting the server to listen to other clients
+
+# Getting our IP
+command = ["curl", "https://ipinfo.io/ip"]
+result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
+host_ip = result.stdout.strip()
+print(host_ip)
 
 # Receiving IP from dummyclients
 connectionsocket = []           # list of connection sockets for acting as server
