@@ -18,17 +18,17 @@ def receive_msg(sock):
     return s
 
 def webserver(clientsocket):
-    global line_ct
     # Processing lines from web server
+    global line_ct
     while line_ct != max_length:
         send_msg(clientsocket, ['SENDLINE\n'])                # Asking for line from webserver
-        response = receive_msg(clientsocket).split('\n')       # Storing webserver response
-        line_num = int(response[0])
+        line_num = int(receive_msg(clientsocket))                    # Storing webserver response
+        line_content = receive_msg(clientsocket)
         if line_num == -1:
             continue
         with line_lock[line_num]:
             if not line[line_num]:
-                line[line_num] = response[1]
+                line[line_num] = line_content
                 with line_ct_lock:
                     line_ct += 1
                     print(line_ct)
