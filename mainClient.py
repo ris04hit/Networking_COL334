@@ -52,6 +52,7 @@ def receive_line(sock):
                     line_ct += 1
                     print(line_ct)
 
+
 # For web server
 web_ip = '10.17.51.115'
 web_port = 9801
@@ -70,8 +71,8 @@ host = '2021CS10547@team\n'
 serversocket.listen(num_dc)     # Setting the server to listen to other clients
 
 # Getting our IP
-command = ["curl", "https://ipinfo.io/ip"]
-result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
+command = ["ip route |grep default | awk '{print $3}'"]
+result = subprocess.run(command[0], shell = True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
 host_ip = result.stdout.strip()
 print(host_ip)
 
