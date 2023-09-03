@@ -12,7 +12,7 @@ def receive_msg(sock):
     '''
     s = ''
     while True:
-        s += sock.recv(1024).decode()
+        s += sock.recv(1).decode()
         if s[-1] == '\n':
             break
     return s
@@ -21,7 +21,7 @@ def webserver(clientsocket):
     global line_ct
     # Processing lines from web server
     while line_ct != max_length:
-        clientsocket.send('SENDLINE\n'.encode())                # Asking for line from webserver
+        send_msg(clientsocket, ['SENDLINE\n'])                # Asking for line from webserver
         response = receive_msg(clientsocket).split('\n')       # Storing webserver response
         line_num = int(response[0])
         if line_num == -1:
@@ -88,11 +88,11 @@ try:
     # Sending IP to main client
     dummyclientsocket = [socket(AF_INET, SOCK_STREAM)]       # list of sockets of dummy clients (main client is also considered as dummy)
     dummyclientsocket[0].connect((mainclient_ip, dc_port))
-    dummyclientsocket[0].send(('0 '+host_ip).encode())
+    send_msg(dummyclientsocket[0], ['0 ', host_ip, ' \n'])
 
     # Recieving message from mainClient
     mainsocket, address = serversocket.accept()
-    rec_msg = mainsocket.recv(1024).decode().split()
+    rec_msg = receive_msg(mainsocket).split()
     print(rec_msg)
     connectionsocket = [mainsocket]           # list of connection sockets for acting as server
     if rec_msg[0] == '1':
@@ -102,26 +102,26 @@ try:
         for i in range(1, num_dc):
             dummyclientsocket.append(socket(AF_INET, SOCK_STREAM))
             dummyclientsocket[i].connect((dc_ip[i], dc_port))        # Connection established to each dummy client
-        mainsocket.send('2'.encode())                         # Confirmation message to main client that connection is established
+        send_msg(mainsocket, ['2 \n'])                         # Confirmation message to main client that connection is established
         for i in range(num_dc-1):
             consocket, addr = serversocket.accept()
             connectionsocket.append(consocket)
 
     # Receiving message to connect to webserver
-    rec_msg = mainsocket.recv(1024).decode()
+    rec_msg = receive_msg(mainsocket)
     print(rec_msg)
-    if rec_msg == '3':
+    if rec_msg[0] == '3':
         clientsocket.connect((web_ip, web_port))                      # Connecting to web server
 
     # receiving maxlength from main client
-    rec_msg = mainsocket.recv(1024).decode().split()
+    rec_msg = receive_msg(mainsocket).split()
     print(rec_msg)
     if rec_msg[0] == '4':
         max_length = int(rec_msg[1])
     else:                                                           # If max length not received from mainclient then asking from server
         msg = ['SUBMIT\n', host, '1\n', '1\n', '\n']
         send_msg(clientsocket, msg)
-        response = clientsocket.recv(1024).decode().split()
+        response = receive_msg(clientsocket).split()
         max_length = int(response[-5])
 
     # variable to store lines and its count
