@@ -90,11 +90,12 @@ try:
 
     # Recieving message from mainClient
     mainsocket, address = serversocket.accept()
-    received_msg = mainsocket.recv(1024).decode().split()
-    print(received_msg)
+    rec_msg = mainsocket.recv(1024).decode().split()
+    print(rec_msg)
     connectionsocket = [mainsocket]           # list of connection sockets for acting as server
-    if received_msg[0] == '1':
-        dc_ip = [mainclient_ip]+received_msg[1:]
+    if rec_msg[0] == '1':
+        dc_ip = [mainclient_ip]+rec_msg[1:]
+        dc_ip.remove(host_ip)
         num_dc = len(dc_ip)         # Currrent number of dummyclients
         for i in range(1, num_dc):
             dummyclientsocket.append(socket(AF_INET, SOCK_STREAM))
@@ -104,17 +105,17 @@ try:
             consocket, addr = serversocket.accept()
             connectionsocket.append(consocket)
 
-    # Receiving message from mainClient
-    received_msg = mainsocket.recv(1024).decode()
-    print(receive_msg)
-    if received_msg == '3':
+    # Receiving message to connect to webserver
+    rec_msg = mainsocket.recv(1024).decode()
+    print(rec_msg)
+    if rec_msg == '3':
         clientsocket.connect((web_ip, web_port))                      # Connecting to web server
 
     # receiving maxlength from main client
-    received_msg = mainsocket.recv(1024).decode().split()
-    print(receive_msg)
-    if received_msg[0] == '4':
-        max_length = int(received_msg[1])
+    rec_msg = mainsocket.recv(1024).decode().split()
+    print(rec_msg)
+    if rec_msg[0] == '4':
+        max_length = int(rec_msg[1])
     else:                                                           # If max length not received from mainclient then asking from server
         msg = ['SUBMIT\n', host, '1\n', '1\n', '\n']
         send_msg(clientsocket, msg)
