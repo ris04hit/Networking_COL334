@@ -1,5 +1,5 @@
 from socket import *
-import threading, sys, subprocess
+import threading, sys
 
 def send_msg(sock, msg):
     # function to send message
@@ -36,7 +36,7 @@ def webserver(clientsocket):
         # creating threads for line transfer to dummyclients 
         dummy_thread = []
         for i in range(num_dc):
-            dummy_thread.append(threading.Thread(target = send_msg, args=(dummyclientsocket[i], [response])))
+            dummy_thread.append(threading.Thread(target = send_msg, args=(dummyclientsocket[i], [resp])))
             dummy_thread[i].start()
             
 def receive_line(sock):
@@ -62,11 +62,12 @@ def get_default_gateway():
 
 def close_socket():
     clientsocket.close()
+    serversocket.close()
     for i in range(num_dc):
         dummyclientsocket[i].close()
-    serversocket.close()
 
 
+num_dc = int(sys.argv[1])                  # Number of dummy clients to be connected
 try:
     # For web server
     web_ip = '10.17.51.115'
@@ -79,7 +80,6 @@ try:
     serversocket.bind(('', server_port))
 
     # For dummy clients
-    num_dc = int(sys.argv[1])                  # Number of dummy clients to be connected
     dc_ip = []
     dc_port = 12000
     host = '2021CS10547@team\n'

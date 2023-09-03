@@ -1,5 +1,5 @@
 from socket import *
-import threading, sys, subprocess
+import threading, sys
 
 def send_msg(sock, msg):
     # function to send message
@@ -11,8 +11,10 @@ def receive_msg(sock):
         function to receive message from socket
     '''
     s = ''
-    while s[-1] != '\n':
-        s += sock.rcv(1024).decode()
+    while True:
+        s += sock.recv(1024).decode()
+        if s[-1] == '\n':
+            break
     return s
 
 def webserver(clientsocket):
@@ -43,8 +45,8 @@ def receive_line(sock):
     # Processing lines from dummyclients
     global line_ct
     while True:
-        response = receive_msg(sock).split('\n')
-        line_num = int(response[0])
+        response_var = receive_msg(sock).split('\n')
+        line_num = int(response_var[0])
         with line_lock[line_num]:
             if not line[line_num]:
                 line[line_num] = response[1]
