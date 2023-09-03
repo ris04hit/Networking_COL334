@@ -67,98 +67,93 @@ def close_socket():
     serversocket.close()
 
 
-# For web server
-web_ip = '10.17.51.115'
-web_port = 9801
-clientsocket = socket(AF_INET, SOCK_STREAM)
+try:
+    # For web server
+    web_ip = '10.17.51.115'
+    web_port = 9801
+    clientsocket = socket(AF_INET, SOCK_STREAM)
 
-# Creating a server socket
-serversocket = socket(AF_INET, SOCK_STREAM)
-server_port = 12000
-serversocket.bind(('', server_port))
+    # Creating a server socket
+    serversocket = socket(AF_INET, SOCK_STREAM)
+    server_port = 12000
+    serversocket.bind(('', server_port))
 
-# For dummy clients
-num_dc = int(sys.argv[1])                  # Number of dummy clients to be connected
-dc_ip = []
-dc_port = 12000
-host = '2021CS10547@team\n'
-serversocket.listen(num_dc)     # Setting the server to listen to other clients
+    # For dummy clients
+    num_dc = int(sys.argv[1])                  # Number of dummy clients to be connected
+    dc_ip = []
+    dc_port = 12000
+    host = '2021CS10547@team\n'
+    serversocket.listen(num_dc)     # Setting the server to listen to other clients
 
-# Getting our IP
-host_ip = get_default_gateway()
-print(host_ip)
+    # Getting our IP
+    host_ip = get_default_gateway()
+    print(host_ip)
 
-# Receiving IP from dummyclients
-connectionsocket = []           # list of connection sockets for acting as server
-for i in range(num_dc):
-    try:
+    # Receiving IP from dummyclients
+    connectionsocket = []           # list of connection sockets for acting as server
+    for i in range(num_dc):
         consocket, addr = serversocket.accept()                 # Accepting connection
         connectionsocket.append(consocket)
         msg = connectionsocket[i].recv(1024).decode().split()
         if msg[0] == '0':
             dc_ip.append(msg[1])
         print(msg)
-    except Exception as e:
-        close_socket()
-        print(e)
-        sys.exit(0)
 
-# Connecting with dummy clients
-dummyclientsocket = []       # list of sockets of dummy clients
-for i in range(num_dc):
-    try:
+    # Connecting with dummy clients
+    dummyclientsocket = []       # list of sockets of dummy clients
+    for i in range(num_dc):
         dummyclientsocket.append(socket(AF_INET, SOCK_STREAM))
         dummyclientsocket[i].connect((dc_ip[i], dc_port))        # Connection established to each dummy client
-    except Exception as e:
-        close_socket()
-        print(e)
-        sys.exit(0)
 
-for i in range(num_dc):
-    dummyclientsocket[i].send(('1 ' + ' '.join(dc_ip)).encrypt())                 # Message for dummy client to connect to other clients
-    response = dummyclientsocket[i].recv(1024).decode()      # Confirmation message that dummyclient connected to other clients
-    
-for i in range(num_dc):
-    dummyclientsocket[i].send('3'.encode())                # Message for dummy client to connect to web server
-clientsocket.connect((web_ip, web_port))                      # Connecting to web server
+    for i in range(num_dc):
+        dummyclientsocket[i].send(('1 ' + ' '.join(dc_ip)).encode())                 # Message for dummy client to connect to other clients
+        response = dummyclientsocket[i].recv(1024).decode()      # Confirmation message that dummyclient connected to other clients
+        print(response)
+        
+    for i in range(num_dc):
+        dummyclientsocket[i].send('3'.encode())                # Message for dummy client to connect to web server
+    clientsocket.connect((web_ip, web_port))                      # Connecting to web server
 
-# Asking for max length from server
-msg = ['SUBMIT\n', host, '1\n', '1\n', '\n']
-send_msg(clientsocket, msg)
-response = clientsocket.recv(1024).decode().split()
-max_length = int(response[-5])
+    # Asking for max length from server
+    msg = ['SUBMIT\n', host, '1\n', '1\n', '\n']
+    send_msg(clientsocket, msg)
+    response = clientsocket.recv(1024).decode().split()
+    max_length = int(response[-5])
 
-# Sending max length to dummyclient
-for i in range(num_dc):
-    dummyclientsocket[i].send(('4 '+str(max_length)).encode())
+    # Sending max length to dummyclient
+    for i in range(num_dc):
+        dummyclientsocket[i].send(('4 '+str(max_length)).encode())
 
-# variable to store lines and its count
-line = [None]*max_length
-line_lock = [threading.Lock() for i in range(max_length)]       # Lock for each line
-line_ct = 0
-line_ct_lock = threading.Lock()         # Lock for line_ct
+    # variable to store lines and its count
+    line = [None]*max_length
+    line_lock = [threading.Lock() for i in range(max_length)]       # Lock for each line
+    line_ct = 0
+    line_ct_lock = threading.Lock()         # Lock for line_ct
 
-# Creating different threads
-web_thread = threading.Thread(target=webserver, args=(clientsocket, ))        # Creating a thread for web server
-receive_thread = []             # list of threads for receiving lines from dummyclient
-for i in range(num_dc):
-    receive_thread.append(threading.Thread(target=receive_line, args=(connectionsocket[i],)))
-    receive_thread[i].start()
+    # Creating different threads
+    web_thread = threading.Thread(target=webserver, args=(clientsocket, ))        # Creating a thread for web server
+    receive_thread = []             # list of threads for receiving lines from dummyclient
+    for i in range(num_dc):
+        receive_thread.append(threading.Thread(target=receive_line, args=(connectionsocket[i],)))
+        receive_thread[i].start()
 
-web_thread.start()                  # Starting web server thread
-web_thread.join()                   # Waiting for web server thread to finsih
+    web_thread.start()                  # Starting web server thread
+    web_thread.join()                   # Waiting for web server thread to finsih
 
-# Submitting collected lines
-msg = ['SUBMIT\n', host, str(line_ct)+"\n"]
-for i in range (max_length):
-    if line[i]:
-        msg.append(str(i)+'\n')
-        msg.append(line[i]+'\n')
-send_msg(clientsocket, msg)
+    # Submitting collected lines
+    msg = ['SUBMIT\n', host, str(line_ct)+"\n"]
+    for i in range (max_length):
+        if line[i]:
+            msg.append(str(i)+'\n')
+            msg.append(line[i]+'\n')
+    send_msg(clientsocket, msg)
 
-# Getting submit response from server
-response = receive_msg(clientsocket)
-print(response)
+    # Getting submit response from server
+    response = receive_msg(clientsocket)
+    print(response)
 
-# Closing sockets
-close_socket()
+    # Closing sockets
+    close_socket()
+except Exception as e:
+    close_socket()
+    print(e)
