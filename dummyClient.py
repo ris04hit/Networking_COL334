@@ -64,7 +64,7 @@ host = '2021CS10121@team\n'
 serversocket.listen(num_dc)     # Setting the server to listen to other clients
 
 # Getting our IP
-command = ["curl", "https://ipinfo.io/ip"]
+command = ["ip route |grep default | awk '{print $3}'"]
 result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
 host_ip = result.stdout.strip()
 print(host_ip)
