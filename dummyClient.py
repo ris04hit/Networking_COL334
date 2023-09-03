@@ -1,5 +1,6 @@
 from socket import *
 import threading
+import sys
 
 def send_msg(sock, msg):
     # function to send message
@@ -54,35 +55,44 @@ serversocket = socket(AF_INET, SOCK_STREAM)
 server_port = 12000
 serversocket.bind(('', server_port))
 
+# For Main Client
+mainclient_ip = sys.argv[1]
+
 # For dummy clients
 dc_port = 12000
-num_dc = 3
+num_dc = 3                      # Max possible number of dummyclients
 host = '2021CS10121@team\n'
+host_ip = gethostbyname(gethostname())
 serversocket.listen(num_dc)     # Setting the server to listen to other clients
-dummyclientsocket = []       # list of sockets of dummy clients
+
+# Sending IP to main client
+dummyclientsocket = [socket(AF_INET, SOCK_STREAM)]       # list of sockets of dummy clients (main client is also considered as dummy)
+dummyclientsocket[0].connect((mainclient_ip, dc_port))
+dummyclientsocket[0].send(('0 '+host_ip).encode())
+
 # Recieving message from mainClient
 mainsocket, address = serversocket.accept()
 received_msg = mainsocket.recv(1024).decode().split()
 connectionsocket = [mainsocket]           # list of connection sockets for acting as server
-if received_msg[0] == '0':
-    dc_ip = received_msg[1:]
-    num_dc = len(dc_ip)
-    for i in range(num_dc):
+if received_msg[0] == '1':
+    dc_ip = [mainclient_ip]+received_msg[1:]
+    num_dc = len(dc_ip)         # Currrent number of dummyclients
+    for i in range(1, num_dc):
         dummyclientsocket.append(socket(AF_INET, SOCK_STREAM))
         dummyclientsocket[i].connect((dc_ip[i], dc_port))        # Connection established to each dummy client
-    mainsocket.send('1'.encode())                         # Confirmation message to main client that connection is established
+    mainsocket.send('2'.encode())                         # Confirmation message to main client that connection is established
     for i in range(num_dc-1):
         consocket, addr = serversocket.accept()
         connectionsocket.append(consocket)
 
 # Receiving message from mainClient
 received_msg = mainsocket.recv(1024).decode()
-if received_msg == '2':
+if received_msg == '3':
     clientsocket.connect((web_ip, web_port))                      # Connecting to web server
 
 # receiving maxlength from main client
 received_msg = mainsocket.recv(1024).decode().split()
-if received_msg[0] == '3':
+if received_msg[0] == '4':
     max_length = int(received_msg[1])
 else:                                                           # If max length not received from mainclient then asking from server
     msg = ['SUBMIT\n', host, '1\n', '1\n', '\n']

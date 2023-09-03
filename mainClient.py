@@ -1,5 +1,6 @@
 from socket import *
 import threading
+import sys
 
 def send_msg(sock, msg):
     # function to send message
@@ -63,25 +64,35 @@ server_port = 12000
 serversocket.bind(('', server_port))
 
 # For dummy clients
+num_dc = int(sys.argv[1])                  # Number of dummy clients to be connected
 dc_ip = []
 dc_port = 12000
-num_dc = len(dc_ip)
 host = '2021CS10547@team\n'
+host_ip = gethostbyname(gethostname())
+print(host_ip)
 serversocket.listen(num_dc)     # Setting the server to listen to other clients
-dummyclientsocket = []       # list of sockets of dummy clients
+
+# Receiving IP from dummyclients
 connectionsocket = []           # list of connection sockets for acting as server
+for i in range(num_dc):
+    consocket, addr = serversocket.accept()                 # Accepting connection
+    connectionsocket.append(consocket)
+    msg = connectionsocket[i].recv(1024).decode().split()
+    if msg[0] == '0':
+        dc_ip.append(msg[1])
+
+# Connecting with dummy clients
+dummyclientsocket = []       # list of sockets of dummy clients
 for i in range(num_dc):
     dummyclientsocket.append(socket(AF_INET, SOCK_STREAM))
     dummyclientsocket[i].connect((dc_ip[i], dc_port))        # Connection established to each dummy client
 
 for i in range(num_dc):
-    dummyclientsocket[i].send(('0 '+dc_ip.join(' ')).encrypt())                 # Message for dummy client to connect to other clients
+    dummyclientsocket[i].send(('1 '+dc_ip.join(' ')).encrypt())                 # Message for dummy client to connect to other clients
     response = dummyclientsocket[i].recv(1024).decode()      # Confirmation message that dummyclient connected to other clients
-    consocket, addr = serversocket.accept()                 # Accepting connection
-    connectionsocket.append(consocket)
     
 for i in range(num_dc):
-    dummyclientsocket[i].send('2'.encrypt())                # Message for dummy client to connect to web server
+    dummyclientsocket[i].send('3'.encrypt())                # Message for dummy client to connect to web server
 clientsocket.connect((web_ip, web_port))                      # Connecting to web server
 
 # Asking for max length from server
@@ -92,7 +103,7 @@ max_length = int(response[-5])
 
 # Sending max length to dummyclient
 for i in range(num_dc):
-    dummyclientsocket[i].send(('3 '+str(max_length)).encode())
+    dummyclientsocket[i].send(('4 '+str(max_length)).encode())
 
 # variable to store lines and its count
 line = [None]*max_length
