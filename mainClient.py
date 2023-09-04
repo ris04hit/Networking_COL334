@@ -46,7 +46,6 @@ def receive_line(sock):
     global line_ct
     try:
         while line_ct != max_length:
-            print('rec')
             line_num = int(receive_msg(sock))                    # Storing dummyclient response
             line_content = receive_msg(sock)
             with line_lock[line_num]:
@@ -102,7 +101,6 @@ try:
         msg = receive_msg(connectionsocket[i]).split()
         if msg[0] == '0':
             dc_ip.append(msg[1])
-        print(msg)
 
     # Connecting with dummy clients
     dummyclientsocket = []       # list of sockets of dummy clients
@@ -113,7 +111,6 @@ try:
     for i in range(num_dc):
         send_msg(dummyclientsocket[i], ['1 ', ' '.join(dc_ip), ' \n'])                 # Message for dummy client to connect to other clients
         response = receive_msg(dummyclientsocket[i])      # Confirmation message that dummyclient connected to other clients
-        print(response)
         
     for i in range(num_dc):
         send_msg(dummyclientsocket[i], ['3 \n'])                # Message for dummy client to connect to web server

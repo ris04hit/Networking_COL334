@@ -103,7 +103,6 @@ try:
     # Recieving message from mainClient
     mainsocket, address = serversocket.accept()
     rec_msg = receive_msg(mainsocket).split()
-    print(rec_msg)
     connectionsocket = [mainsocket]           # list of connection sockets for acting as server
     if rec_msg[0] == '1':
         dc_ip = [mainclient_ip]+rec_msg[1:]
@@ -119,13 +118,11 @@ try:
 
     # Receiving message to connect to webserver
     rec_msg = receive_msg(mainsocket)
-    print(rec_msg)
     if rec_msg[0] == '3':
         clientsocket.connect((web_ip, web_port))                      # Connecting to web server
 
     # receiving maxlength from main client
     rec_msg = receive_msg(mainsocket).split()
-    print(rec_msg)
     if rec_msg[0] == '4':
         max_length = int(rec_msg[1])
     else:                                                           # If max length not received from mainclient then asking from server
