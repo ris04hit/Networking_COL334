@@ -26,17 +26,20 @@ def webserver(clientsocket):
         line_content = receive_msg(clientsocket)
         if line_num == -1:
             continue
+        send_dummy = False
         with line_lock[line_num]:
             if not line[line_num]:
                 line[line_num] = line_content
                 with line_ct_lock:
                     line_ct += 1
                     print(line_ct)
+                    send_dummy = True
         # creating threads for line transfer to dummyclients 
-        dummy_thread = []
-        for i in range(num_dc):
-            dummy_thread.append(threading.Thread(target = send_msg, args=(dummyclientsocket[i], [str(line_num), '\n', line_content])))
-            dummy_thread[i].start()
+        if send_dummy:
+            dummy_thread = []
+            for i in range(num_dc):
+                dummy_thread.append(threading.Thread(target = send_msg, args=(dummyclientsocket[i], [str(line_num), '\n', line_content])))
+                dummy_thread[i].start()
 
 def receive_line(sock):
     # Processing lines from dummyclients
