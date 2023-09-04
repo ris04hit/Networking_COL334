@@ -32,14 +32,11 @@ def webserver(clientsocket):
                 with line_ct_lock:
                     line_ct += 1
                     print(line_ct)
-
-def get_default_gateway():
-    # Get the default route using socket
-    with socket(AF_INET, SOCK_DGRAM) as s:
-        s.connect(("8.8.8.8", 80))
-        default_gateway = s.getsockname()[0]
-
-    return default_gateway
+        # creating threads for line transfer to dummyclients 
+        dummy_thread = []
+        for i in range(num_dc):
+            dummy_thread.append(threading.Thread(target = send_msg, args=(dummyclientsocket[i], [str(line_num), '\n', line_content])))
+            dummy_thread[i].start()
 
 def receive_line(sock):
     # Processing lines from dummyclients
@@ -56,6 +53,13 @@ def receive_line(sock):
                         print(line_ct)
     except:
         pass
+
+def get_default_gateway():
+    # Get the default route using socket
+    with socket(AF_INET, SOCK_DGRAM) as s:
+        s.connect(("8.8.8.8", 80))
+        default_gateway = s.getsockname()[0]
+    return default_gateway
 
 def close_socket():
     clientsocket.close()

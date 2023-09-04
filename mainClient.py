@@ -43,6 +43,7 @@ def receive_line(sock):
     global line_ct
     try:
         while line_ct != max_length:
+            print('rec')
             line_num = int(receive_msg(sock))                    # Storing dummyclient response
             line_content = receive_msg(sock)
             with line_lock[line_num]:
@@ -59,7 +60,6 @@ def get_default_gateway():
     with socket(AF_INET, SOCK_DGRAM) as s:
         s.connect(("8.8.8.8", 80))
         default_gateway = s.getsockname()[0]
-
     return default_gateway
 
 def close_socket():
