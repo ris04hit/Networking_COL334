@@ -1,5 +1,5 @@
 from socket import *
-import threading, sys
+import threading, sys, time
 
 def send_msg(sock, msg):
     # function to send message
@@ -88,7 +88,7 @@ try:
     # For dummy clients
     dc_port = 12000
     num_dc = 3                      # Max possible number of dummyclients
-    host = '2021CS10121@team\n'
+    host = '2021CS10121@nothing\n'
     serversocket.listen(num_dc)     # Setting the server to listen to other clients
 
     # Getting our IP
@@ -118,6 +118,7 @@ try:
 
     # Receiving message to connect to webserver
     rec_msg = receive_msg(mainsocket)
+    start_time = time.time()
     if rec_msg[0] == '3':
         clientsocket.connect((web_ip, web_port))                      # Connecting to web server
 
@@ -161,6 +162,8 @@ try:
 
     # Closing sockets
     close_socket()
+    end_time = time.time()
+    print('time =', end_time - start_time)
 except Exception as e:
     close_socket()
     print(e)
