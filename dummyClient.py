@@ -3,11 +3,13 @@ import threading, sys, time
 
 def send_msg(sock, msg):
     # function to send message
-    while True:
+    sent = 0
+    while sent < len(msg):
         try:
-            for message in msg:
+            while sent < len(msg):
+                message = msg[sent]
                 sock.send(message.encode())
-                break
+                sent += 1
         except:
             while True:
                 try:
