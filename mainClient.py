@@ -1,8 +1,10 @@
 from socket import *
 import threading, sys, time
 
-def send_msg(sock, msg):
+def send_msg(sock, msg, ind = -1):
     # function to send message
+    if ind > num_dc:
+        dummy_thread[ind - num_dc - 1].join()
     sent = 0
     while (sent < len(msg)) and (not submit):
         try:
@@ -11,7 +13,7 @@ def send_msg(sock, msg):
                 sock.send(message.encode())
                 sent += 1
         except:
-            while True:
+            while not submit:
                 print(sock)
                 try:
                     print("ERROR WHILE SENDING MESSAGE")
@@ -60,9 +62,8 @@ def webserver(clientsocket):
                         send_dummy = True
             # creating threads for line transfer to dummyclients 
             if send_dummy:
-                dummy_thread = []
                 for i in range(num_dc):
-                    dummy_thread.append(threading.Thread(target = send_msg, args=(dummyclientsocket[i], [str(line_num), '\n', line_content])))
+                    dummy_thread.append(threading.Thread(target = send_msg, args=(dummyclientsocket[i], [str(line_num), '\n', line_content], len(dummy_thread))))
                     dummy_thread[i].start()
         except:
             clientsocket.connect((web_ip, web_port))
@@ -165,6 +166,7 @@ try:
     line_ct_lock = threading.Lock()         # Lock for line_ct
 
     # Creating different threads
+    dummy_thread = []
     web_thread = threading.Thread(target=webserver, args=(clientsocket, ))        # Creating a thread for web server
     receive_thread = []             # list of threads for receiving lines from dummyclient
     for i in range(num_dc):
