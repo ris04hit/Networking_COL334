@@ -4,7 +4,7 @@ import threading, sys, time
 def send_msg(sock, msg):
     # function to send message
     sent = 0
-    while sent < len(msg):
+    while (sent < len(msg)) and (not submit):
         try:
             while sent < len(msg):
                 message = msg[sent]
@@ -12,14 +12,20 @@ def send_msg(sock, msg):
                 sent += 1
         except:
             while True:
+                print(sock)
                 try:
+                    print("ERROR WHILE SENDING MESSAGE")
                     if sock == clientsocket:
+                        print("trying connect to send server")
                         sock.connect((web_ip, web_port))
+                        print("connected to server")
                     else:
+                        print("trying connect to send dummy")
                         ind = dummyclientsocket.index(sock)
                         sock.connect((dc_ip[ind], dc_port))
+                        print("connected to server")
                 except:
-                    time.sleep(2)
+                    time.sleep(1)
                     continue
                 break
 
@@ -60,7 +66,7 @@ def webserver(clientsocket):
                     dummy_thread[i].start()
         except:
             clientsocket.connect((web_ip, web_port))
-            time.sleep(2)
+            time.sleep(1)
             
 def receive_line(sock):
     # Processing lines from dummyclients
@@ -69,6 +75,7 @@ def receive_line(sock):
         try:
             line_num = int(receive_msg(sock))                    # Storing dummyclient response
             line_content = receive_msg(sock)
+            print("received", line_num)
             with line_lock[line_num]:
                 if not line[line_num]:
                     line[line_num] = line_content
@@ -78,6 +85,7 @@ def receive_line(sock):
         except:
             consocket, addr = serversocket.accept()
             sock = consocket
+            time.sleep(1)
 
 def get_default_gateway():
     # Get the default route using socket
@@ -94,6 +102,7 @@ def close_socket():
 
 
 num_dc = int(sys.argv[1])                  # Number of dummy clients to be connected
+submit = False
 try:
     # For web server
     web_ip = '10.17.51.115'
@@ -176,6 +185,7 @@ try:
     # Getting submit response from server
     response = receive_msg(clientsocket)
     print(response)
+    submit = True
 
     # Closing sockets
     close_socket()
