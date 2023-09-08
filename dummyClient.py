@@ -64,7 +64,7 @@ def webserver(clientsocket):
             if send_dummy:
                 for i in range(num_dc):
                     dummy_thread.append(threading.Thread(target = send_msg, args=(dummyclientsocket[i], [str(line_num), '\n', line_content], len(dummy_thread))))
-                    dummy_thread[i].start()
+                    dummy_thread[-1].start()
         except:
             clientsocket.connect((web_ip, web_port))
             time.sleep(1)
