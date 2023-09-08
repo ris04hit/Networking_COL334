@@ -3,8 +3,23 @@ import threading, sys, time
 
 def send_msg(sock, msg):
     # function to send message
-    for message in msg:
-        sock.send(message.encode())
+    while True:
+        try:
+            for message in msg:
+                sock.send(message.encode())
+                break
+        except:
+            while True:
+                try:
+                    if sock == clientsocket:
+                        sock.connect((web_ip, web_port))
+                    else:
+                        ind = dummyclientsocket.index(sock)
+                        sock.connect((dc_ip[ind], dc_port))
+                except:
+                    time.sleep(2)
+                    continue
+                break
 
 def receive_msg(sock):
     '''
@@ -21,31 +36,35 @@ def webserver(clientsocket):
     # Processing lines from web server
     global line_ct
     while line_ct != max_length:
-        send_msg(clientsocket, ['SENDLINE\n'])                # Asking for line from webserver
-        line_num = int(receive_msg(clientsocket))                    # Storing webserver response
-        line_content = receive_msg(clientsocket)
-        if line_num == -1:
-            continue
-        send_dummy = False
-        with line_lock[line_num]:
-            if not line[line_num]:
-                line[line_num] = line_content
-                with line_ct_lock:
-                    line_ct += 1
-                    print(line_ct)
-                    send_dummy = True
-        # creating threads for line transfer to dummyclients 
-        if send_dummy:
-            dummy_thread = []
-            for i in range(num_dc):
-                dummy_thread.append(threading.Thread(target = send_msg, args=(dummyclientsocket[i], [str(line_num), '\n', line_content])))
-                dummy_thread[i].start()
+        try:
+            send_msg(clientsocket, ['SENDLINE\n'])                # Asking for line from webserver
+            line_num = int(receive_msg(clientsocket))                    # Storing webserver response
+            line_content = receive_msg(clientsocket)
+            if line_num == -1:
+                continue
+            send_dummy = False
+            with line_lock[line_num]:
+                if not line[line_num]:
+                    line[line_num] = line_content
+                    with line_ct_lock:
+                        line_ct += 1
+                        print(line_ct)
+                        send_dummy = True
+            # creating threads for line transfer to dummyclients 
+            if send_dummy:
+                dummy_thread = []
+                for i in range(num_dc):
+                    dummy_thread.append(threading.Thread(target = send_msg, args=(dummyclientsocket[i], [str(line_num), '\n', line_content])))
+                    dummy_thread[i].start()
+        except:
+            clientsocket.connect((web_ip, web_port))
+            time.sleep(2)
 
 def receive_line(sock):
     # Processing lines from dummyclients
     global line_ct
-    try:
-        while line_ct != max_length:
+    while line_ct != max_length:
+        try:
             line_num = int(receive_msg(sock))                    # Storing dummyclient response
             line_content = receive_msg(sock)
             with line_lock[line_num]:
@@ -54,8 +73,9 @@ def receive_line(sock):
                     with line_ct_lock:
                         line_ct += 1
                         print(line_ct)
-    except:
-        pass
+        except:
+            consocket, addr = serversocket.accept()
+            sock = consocket
 
 def get_default_gateway():
     # Get the default route using socket
