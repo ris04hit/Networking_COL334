@@ -3,8 +3,8 @@ import threading, sys, time
 
 def send_msg(sock, msg, ind = -1):
     # function to send message
-    if ind > num_dc:
-        dummy_thread[ind - num_dc - 1].join()
+    if ind >= num_dc:
+        dummy_thread[ind - num_dc].join()
     sent = 0
     while (sent < len(msg)) and (not submit):
         try:
