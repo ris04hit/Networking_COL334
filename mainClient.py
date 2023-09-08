@@ -14,18 +14,12 @@ def send_msg(sock, msg, ind = -1):
                 sent += 1
         except:
             while not submit:
-                print(sock)
                 try:
-                    print("ERROR WHILE SENDING MESSAGE")
                     if sock == clientsocket:
-                        print("trying connect to send server")
                         sock.connect((web_ip, web_port))
-                        print("connected to server")
                     else:
-                        print("trying connect to send dummy")
                         ind = dummyclientsocket.index(sock)
                         sock.connect((dc_ip[ind], dc_port))
-                        print("connected to server")
                 except:
                     time.sleep(1)
                     continue
@@ -76,7 +70,6 @@ def receive_line(sock):
         try:
             line_num = int(receive_msg(sock))                    # Storing dummyclient response
             line_content = receive_msg(sock)
-            print("received", line_num)
             with line_lock[line_num]:
                 if not line[line_num]:
                     line[line_num] = line_content
@@ -84,9 +77,13 @@ def receive_line(sock):
                         line_ct += 1
                         print(line_ct)
         except:
-            consocket, addr = serversocket.accept()
-            sock = consocket
-            time.sleep(1)
+            while not submit:
+                try:
+                    consocket, addr = serversocket.accept()
+                    sock = consocket
+                    break
+                except:
+                    time.sleep(1)
 
 def get_default_gateway():
     # Get the default route using socket
