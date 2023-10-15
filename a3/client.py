@@ -65,7 +65,10 @@ def request_data(offset: int, num_bytes: int):          # Request data for given
     reply, server_address = clientsocket.recvfrom(sys.getsizeof(message) + num_bytes)
     lock = threading.Lock()
     parsed_reply = reply_parser(reply.decode())
-    received_offset = int(parsed_reply['Offset'])
+    try:
+        received_offset = int(parsed_reply['Offset'])
+    except:
+        print(parsed_reply)
     received_index = received_offset//data_per_request
     with lock:
         data_received[received_index] = reply_parser(reply.decode())['data']
@@ -101,7 +104,7 @@ user = '2021CS10547@nothing'
 
 # Vayu Server
 server_ip = '10.237.26.109'
-server_port = 9801
+server_port = int(sys.argv[1])
 
 # Local Server
 server_ip = '127.0.0.1'
@@ -112,7 +115,7 @@ server = (server_ip, server_port)
 clientsocket = socket(AF_INET, SOCK_DGRAM)
 
 # Fixing Time Period
-time_period = 0.01
+time_period = 0.004
 
 # Size of data to be received
 data_size = 0
