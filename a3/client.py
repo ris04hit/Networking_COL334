@@ -40,8 +40,13 @@ def reply_parser(message: str):     # Converts server reply into dictionary
             data += message[index]
         index += 1
     if data:
-        parsed_msg['data'] = data
+        parsed_msg['Data'] = data
     return parsed_msg
+
+def retransmit(message: str, received: list, index: int):       # Retransmits message
+    while not received[index]:
+        clientsocket.sendto(message.encode(), server)
+        sleep(time_period)
 
 def ask_size():         # Asking for size
     global data_size
@@ -50,28 +55,56 @@ def ask_size():         # Asking for size
     received = [False]
     retransmit_thread = threading.Thread(target=retransmit, args = (message, received, 0))
     retransmit_thread.start()
-    reply, server_address = clientsocket.recvfrom(1024)
+    data = {}
+    while 'Size' not in data:
+        reply, server_address = clientsocket.recvfrom(1024)
+        data = reply_parser(reply.decode())
     lock = threading.Lock()
     with lock:
         received[0] = True
-    data = reply_parser(reply.decode())
+    retransmit_thread.join()
     data_size = int(data['Size'])
 
-def request_data(offset: int, num_bytes: int):          # Request data for given offset and num_bytes
-    message = f'Offset: {offset}\nNumBytes: {num_bytes}\n\n'
-    index = offset//data_per_request
-    retransmit_thread = threading.Thread(target=retransmit, args = (message, data_received, index))
-    retransmit_thread.start()
-    reply, server_address = clientsocket.recvfrom(sys.getsizeof(message) + num_bytes)
-    lock = threading.Lock()
-    parsed_reply = reply_parser(reply.decode())
-    try:
+def data_receiver():     # Receiver for data
+    global received_packet_num
+    global duplicate_packet_num
+    while received_packet_num != len(data_received):
+        message = f'Offset: {data_size}\nNumBytes: {data_per_request}\n\n'
+        parsed_reply = {}
+        while ('Offset' not in parsed_reply) or ('Data' not in parsed_reply):
+            reply, server_address = clientsocket.recvfrom(sys.getsizeof(message) + data_per_request)
+            parsed_reply = reply_parser(reply.decode())
+        lock = threading.Lock()
         received_offset = int(parsed_reply['Offset'])
-    except:
-        print(parsed_reply)
-    received_index = received_offset//data_per_request
-    with lock:
-        data_received[received_index] = reply_parser(reply.decode())['data']
+        received_index = received_offset//data_per_request
+        if not data_received[received_index]:
+            with lock:
+                data_received[received_index] = reply_parser(reply.decode())['Data']
+                received_packet_num += 1
+        else:
+            duplicate_packet_num += 1
+
+def send_request():        # Sends request to server
+    # Sending first request
+    first_not_ack = 0       # index of first element in window whose data is not received
+    for ind in range(window_size):
+        offset = ind*data_per_request
+        message = f'Offset: {offset}\nNumBytes: {data_per_request}\n\n'
+        clientsocket.sendto(message.encode(), server)
+    while first_not_ack < len(data_received):
+        start_timer = time()
+        offset = first_not_ack*data_per_request
+        while not data_received[first_not_ack]:
+            if time() - start_timer > time_period:      # Timeout
+                message = f'Offset: {offset}\nNumBytes: {data_per_request}\n\n'
+                clientsocket.sendto(message.encode(), server)
+                start_timer = time()
+            sleep(time_period/num_check)
+        first_not_ack += 1
+        if (first_not_ack + offset) < len(data_received):       # Sending request for newly transmitted msg
+            offset = (first_not_ack + offset)*data_per_request
+            message = f'Offset: {offset}\nNumBytes: {data_per_request}\n\n'
+            clientsocket.sendto(message.encode(), server)
 
 def submit_data():      # Submit data
     global result
@@ -83,21 +116,17 @@ def submit_data():      # Submit data
     received = [False]
     retransmit_thread = threading.Thread(target=retransmit, args = (message, received, 0))
     retransmit_thread.start()
-    reply, server_address = clientsocket.recvfrom(1024)
+    data = {}
+    while 'Result' not in data:
+        reply, server_address = clientsocket.recvfrom(1024)
+        data = reply_parser(reply.decode())
     lock = threading.Lock()
     with lock:
         received[0] = True
-    data = reply_parser(reply.decode())
+    retransmit_thread.join()
     if data['Result'] == 'true':
         result = True
     print(data)
-
-def retransmit(message: str, received: list, index: int):       # Retransmits message
-    time_pause = time_period
-    while not received[index]:
-        clientsocket.sendto(message.encode(), server)
-        sleep(time_pause)
-        time_pause += time_period
 
 # Submitting user
 user = '2021CS10547@nothing'
@@ -115,11 +144,13 @@ server = (server_ip, server_port)
 clientsocket = socket(AF_INET, SOCK_DGRAM)
 
 # Fixing Time Period
-time_period = 0.004
+time_period = 0.005
+num_check = 100     # Checks this many times whether data received before time_out
 
 # Size of data to be received
 data_size = 0
 data_per_request = 1448
+window_size = 1<<5
 
 result = False
 
@@ -128,21 +159,31 @@ while not result:
     ask_thread = threading.Thread(target=ask_size)
     ask_thread.start()
     ask_thread.join()
+    
+    #  Initializing required variables
+    data_received = [None for offset in range(0, data_size, data_per_request)]
+    window_size = min(window_size, data_size//data_per_request)
+    received_packet_num = 0
+    duplicate_packet_num = 0
+
+    # Turning on data receiver
+    receiver_thread = threading.Thread(target=data_receiver)
+    receiver_thread.start()
 
     # Asking for data
-    data_received = [None for offset in range(0, data_size, data_per_request)]
-    window_size = (data_size//data_per_request)
-    thread_list = [threading.Thread(target=request_data, args=(offset, data_per_request)) for offset in range(0, data_size, data_per_request)]
-    for thread in thread_list:
-        thread.start()
-        sleep(time_period)
-    for thread in thread_list:
-        thread.join()
+    send_thread = threading.Thread(target=send_request)
+    send_thread.start()
+    
+    # Waiting for threads to finish
+    receiver_thread.join()
+    send_thread.join()
         
     # Submitting data
     submit_thread = threading.Thread(target=submit_data)
     submit_thread.start()
     submit_thread.join()
+    
+    print(received_packet_num, duplicate_packet_num)
 
 # Closing Socket
 clientsocket.close()
