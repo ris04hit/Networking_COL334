@@ -47,16 +47,14 @@ def modify_rtt(time_val: float):        # Changes time parameters of program
     def temp_modify_rtt(time_val: float):
         global timeout_time
         global avg_rtt
-        global dev_rtt
-        dev_rtt = 0.75*dev_rtt + 0.25*abs(time_val - avg_rtt)
         if avg_rtt:
             avg_rtt = 0.875*avg_rtt + 0.125*time_val
         else:
             avg_rtt = time_val
         lock = threading.Lock()
         with lock:
-            timeout_time = timeout_multiplier*(avg_rtt + 4*dev_rtt)
-        print(time_val, avg_rtt, dev_rtt, timeout_time)
+            timeout_time = timeout_multiplier*avg_rtt
+        rtt_log.write(f'{time()-first_req_time}\t{time_val}\t{avg_rtt}\n')       # Writing log file
     rtt_thread = threading.Thread(target=temp_modify_rtt, args=(time_val,))
     rtt_thread.start()
     rtt_thread.join()
@@ -87,6 +85,7 @@ def data_receiver():     # Receiver for data
     global received_packet_num
     global duplicate_packet_num
     global squished
+    global window_size
     while received_packet_num != len(data_received):
         message = f'Offset: {data_size}\nNumBytes: {data_per_request}\n\n'
         parsed_reply = {}
@@ -100,33 +99,40 @@ def data_receiver():     # Receiver for data
                 squished += 1
         received_offset = int(parsed_reply['Offset'])
         received_index = received_offset//data_per_request
-        lock = threading.Lock()
+        receive_log.write(f'{end_time-first_req_time}\t{received_offset}\n')
         while not start_time[received_index]:
             pass
         if start_time[received_index] != -1:
             modify_rtt(end_time-start_time[received_index])
+        lock = threading.Lock()
         if not data_received[received_index]:
+            unique_receive_log.write(f'{end_time-first_req_time}\t{received_offset}\n')
             with lock:
                 data_received[received_index] = parsed_reply['Data']
                 received_packet_num += 1
+                window_size += 1/int(window_size)       # Increasing window size due to low congestion
+                window_log.write(f'{end_time-first_req_time}\t{window_size}\n')
         else:
+            duplicate_receive_log.write(f'{end_time-first_req_time}\t{received_offset}\n')
             with lock:
                 duplicate_packet_num += 1
 
 def send_request():        # Sends request to server
     global requested_packet_num
-    # Sending first request
+    global window_size
     first_not_ack = 0       # index of first element in window whose data is not received
+    max_sent = -1           # packet with index max_sent is the packet requested with max index till now
     while first_not_ack < len(data_received):
         ind = first_not_ack
         count = 0
-        while (count < window_size) and (ind < len(data_received)):
+        while (count < int(window_size)) and (ind < len(data_received)):        # Sending requests in burst of window_size
             if not data_received[ind]:
                 offset = ind*data_per_request
                 message = f'Offset: {offset}\nNumBytes: {data_per_request}\n\n'
                 start_time_lock = threading.Lock()
                 start_time_val = time()
                 clientsocket.sendto(message.encode(), server)
+                sent_log.write(f'{start_time_val-first_req_time}\t{offset}\n')      # Writing log file
                 with start_time_lock:
                     if not start_time[ind]:
                         start_time[ind] = start_time_val
@@ -134,47 +140,16 @@ def send_request():        # Sends request to server
                         start_time[ind] = -1
                     requested_packet_num += 1
                 count += 1
+                if ind <= max_sent:
+                    window_lock = threading.Lock()
+                    with window_lock:
+                        window_size = max(1, window_size/2)
+                        window_log.write(f'{start_time_val-first_req_time}\t{window_size}\n')
+                max_sent = max(max_sent, ind)
             elif count == 0:
                 first_not_ack += 1
             ind += 1
         sleep(timeout_time)
-
-        
-    # for ind in range(window_size):
-    #     offset = ind*data_per_request
-    #     message = f'Offset: {offset}\nNumBytes: {data_per_request}\n\n'
-    #     start_time_lock = threading.Lock()
-    #     start_time_val = time()
-    #     clientsocket.sendto(message.encode(), server)
-    #     with start_time_lock:
-    #         start_time[ind] = start_time_val
-    #         requested_packet_num += 1
-    # while first_not_ack < len(data_received):
-    #     start_timer = time()
-    #     offset = first_not_ack*data_per_request
-    #     timeout_time_local = timeout_time
-    #     while not data_received[first_not_ack]:
-    #         if time() - start_timer > timeout_time_local:      # Timeout
-    #             message = f'Offset: {offset}\nNumBytes: {data_per_request}\n\n'
-    #             start_time_lock = threading.Lock()
-    #             start_time_val = -1
-    #             clientsocket.sendto(message.encode(), server)
-    #             with start_time_lock:
-    #                 start_time[first_not_ack] = start_time_val
-    #                 requested_packet_num += 1
-    #             start_timer = time()
-    #             timeout_time_local *= 2
-    #         sleep(timeout_time_local/num_check)
-    #     if (first_not_ack + window_size) < len(data_received):       # Sending request for newly transmitted msg
-    #         offset = (first_not_ack + window_size)*data_per_request
-    #         message = f'Offset: {offset}\nNumBytes: {data_per_request}\n\n'
-    #         start_time_lock = threading.Lock()
-    #         start_time_val = time()
-    #         clientsocket.sendto(message.encode(), server)
-    #         with start_time_lock:
-    #             start_time[first_not_ack + window_size] = start_time_val
-    #             requested_packet_num += 1
-    #     first_not_ack += 1
 
 def submit_data():      # Submit data
     global result
@@ -206,7 +181,7 @@ server_ip = '10.17.7.134'
 server_port = int(sys.argv[1])
 
 # Local Server
-server_ip = '127.0.0.1'
+# server_ip = '127.0.0.1'
 
 server = (server_ip, server_port)
 
@@ -214,16 +189,22 @@ server = (server_ip, server_port)
 clientsocket = socket(AF_INET, SOCK_DGRAM)
 
 # Fixing Time Period
-timeout_multiplier = 5
+timeout_multiplier = 7      # use 4 for constant vayu server, use 8 for local server, 7 for variable vayu server
 timeout_time = 0.1
-# num_check = 100     # Checks this many times whether data received before time_out
 avg_rtt = 0
-dev_rtt = 0
 
 # Size of data to be received
 data_size = 0
 data_per_request = 1448
-window_size = 1
+window_size = 10
+
+# Log files
+rtt_log = open('log/rtt.txt', 'w')
+sent_log = open('log/sent.txt', 'w')
+receive_log = open('log/receive.txt', 'w')
+unique_receive_log = open('log/unique.txt', 'w')
+duplicate_receive_log = open('log/duplicate.txt', 'w')
+window_log = open('log/window.txt', 'w')
 
 result = False
 
@@ -237,12 +218,12 @@ while not result:
     data_received = [None for offset in range(0, data_size, data_per_request)]
     start_time = [None for offset in range(0, data_size, data_per_request)]
     window_size = min(window_size, len(data_received))
-    ssthresh = 0
-    congestion_state = 0        # 0: slow start     1: congestion avoidance
+    window_log.write(f'0\t{window_size}\n')
     requested_packet_num = 0
     received_packet_num = 0
     duplicate_packet_num = 0
     squished = 0
+    first_req_time = time()
 
     # Turning on data receiver
     receiver_thread = threading.Thread(target=data_receiver)
@@ -262,6 +243,14 @@ while not result:
     submit_thread.join()
     
     print(f'Requested Packets:\t\t{requested_packet_num}\nReceived Packets:\t\t{received_packet_num}\nDuplicate Packets:\t\t{duplicate_packet_num}\nSquished Packets:\t\t{squished}\nTime Period:\t\t\t{timeout_time}')
+
+# Closing Log files
+rtt_log.close()
+sent_log.close()
+receive_log.close()
+unique_receive_log.close()
+duplicate_receive_log.close()
+window_log.close()
 
 # Closing Socket
 clientsocket.close()
